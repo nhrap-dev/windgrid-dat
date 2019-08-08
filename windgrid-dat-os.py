@@ -1,34 +1,10 @@
 import geopandas as gpd
 import pandas as pd
-from time import time
 import numpy as np
-# import matplotlib.pyplot as plt
-# import os
+from scipy.spatial import cKDTree
+from time import time
 
-def distance_matrix(x, y, xi, yi):
-    """ Creates a matrix with the distance from a given point (x1, y1)
-    to all other points
-
-    Keyword arguments:
-        x: 1d array -- point locations on the x-axis
-        y: 1d array -- point locations on the y-axis
-        xi: float -- x-axis point location of unknown value
-        yi: float -- y-axis point location of unknown value
-    
-    Return:
-        dist_mx: 1d array -- distances from every x,y point to xi,yi
-    """
-    obs = np.vstack((x, y)).T
-    interp = np.vstack((xi, yi)).T
-
-    # Make a distance matrix between pairwise observations
-    d0 = np.subtract.outer(obs[:,0], interp[:,0])
-    d1 = np.subtract.outer(obs[:,1], interp[:,1])
-
-    dist_mx = np.hypot(d0, d1)
-    return dist_mx
-
-def idw(x,y,z,xi,yi):
+def idw(kdtree,z,xi,yi):
     """ Inverse Distance Weighting - interpolates an unknown value at a 
     specified point by weighting the values of it's nearest neighbors
 
@@ -45,15 +21,14 @@ def idw(x,y,z,xi,yi):
     """
     neighbors = 12
     power = 2
-    dist_all = distance_matrix(x,y, xi,yi)
-    dist_n = np.asarray([np.sort(dist_all, axis=None)[x] for x in range(neighbors)])
-    indicies = [np.where(dist_all == x)[0][0] for x in dist_n]
+    # tree = cKDTree(xy)
+    distances, indicies = kdtree.query([xi,yi], k=neighbors)
     z_n = z[indicies]
-    if 0 not in dist_n:
-        weights = power / dist_n
+    if 0 not in distances:
+        weights = power / distances
     else:
-        dist_n += 0.000000001
-        weights = power / dist_n
+        distances += 0.000000001
+        weights = power / distances
     weights /= weights.sum(axis=0)
     zi = np.dot(weights.T, z_n)
     return zi
@@ -87,15 +62,12 @@ def create_dat(windgrid_file, DAT_header, output_file):
     centroids = centroids_all[centroids_intersect == True]
     print(time() - t1)
 
-    # fig, ax = plt.subplots()
-    # dissolve.plot(ax=ax, color='white', edgecolor='black')
-    # centroids.plot(ax=ax, marker='o', color='red', markersize=2)
-    # plt.show()
 
     print('formatting data for idw')
     t1 = time()
-    x = np.asarray([x.x for x in windgrid.geometry])
-    y = np.asarray([x.y for x in windgrid.geometry])
+    # x = np.asarray([x.x for x in windgrid.geometry])
+    # y = np.asarray([x.y for x in windgrid.geometry])
+    xy = np.asarray([[x.x, x.y] for x in windgrid.geometry])
     z = np.asarray([x for x in windgrid.Vg_mph])
     xis = np.asarray([x.x for x in centroids.geometry])
     yis = np.asarray([x.y for x in centroids.geometry])
@@ -103,12 +75,14 @@ def create_dat(windgrid_file, DAT_header, output_file):
 
     print('interpolating values')
     t1 = time()
+    kdtree = cKDTree(xy)
     zis = []
     for xi, yi in zip(xis, yis):
-        zi = idw(x,y,z,xi,yi)
+        zi = idw(kdtree,z,xi,yi)
         zis.append(zi)
     print(time() - t1)
-    zis = np.asarray(zis) * 0.44704
+    zis = np.asarray(zis)
+    zis = zis * 0.44704
 
     print('formatting dataframe for output')
     t1 = time()
@@ -146,7 +120,7 @@ def create_dat(windgrid_file, DAT_header, output_file):
     print('Total elasped time: ' + str(time() - t0))
 
 
-windgrid_file = 'wind_grid/wind_grid.shp'
+windgrid_file = 'wind_grid.shp'
 DAT_header = ['Florence 2018: ARA Day7 as of 09/21/2018',
 'MAXIMUM 3 SECOND WINDS AT 2010 CENSUS TRACK CENTROIDS FOR OPEN TERRAIN',
 'Swath domain provided by FEMA',
