@@ -20,7 +20,6 @@ def idw(kdtree,z,xi,yi):
     """
     neighbors = 12
     power = 2
-    # tree = cKDTree(xy)
     distances, indicies = kdtree.query([xi,yi], k=neighbors)
     z_n = z[indicies]
     if 0 not in distances:
@@ -64,8 +63,6 @@ def create_dat(windgrid_file, DAT_header, output_file):
 
     print('formatting data for idw')
     t1 = time()
-    # x = np.asarray([x.x for x in windgrid.geometry])
-    # y = np.asarray([x.y for x in windgrid.geometry])
     xy = np.asarray([[x.x, x.y] for x in windgrid.geometry])
     z = np.asarray([x for x in windgrid.Vg_mph])
     xis = np.asarray([x.x for x in centroids.geometry])
