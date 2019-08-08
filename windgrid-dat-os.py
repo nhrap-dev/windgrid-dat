@@ -9,8 +9,7 @@ def idw(kdtree,z,xi,yi):
     specified point by weighting the values of it's nearest neighbors
 
     Keyword arguments:
-        x: 1d array -- point locations on the x-axis
-        y: 1d array -- point locations on the y-axis
+        kdtree: scipy.spatial.ckdtree -- kdtree made from a 2d array of x and y coordinates as the columns 
         z: 1d array -- point values at each location
         xi: float -- x-axis point location of unknown value
         yi: float -- y-axis point location of unknown value
