@@ -82,7 +82,7 @@ def create_dat(windgrid_file, DAT_header, output_file):
 
     print('formatting dataframe for output')
     t1 = time()
-    tracts = list(map(lambda x: x + '    ', centroids.TRACT))
+    tracts = list(map(lambda x: x + '    ', centroids.FIPS))
     longs = list(map(lambda x: '{0:.4f}'.format(x) + '   ', xis))
     lats = list(map(lambda x: '{0:.4f}'.format(x) + '      ', yis))
     windSpeeds = list(map(lambda x: '{0:.5f}'.format(x) + '     ', zis))
