@@ -116,11 +116,11 @@ def create_dat(windgrid_file, DAT_header, output_file):
     print('Total elasped time: ' + str(time() - t0))
 
 
-windgrid_file = 'wind_grid.shp'
+windgrid_file = r'C:\Users\jrainesi\Downloads/wg/wind_grid.shp'
 DAT_header = ['Florence 2018: ARA Day7 as of 09/21/2018',
 'MAXIMUM 3 SECOND WINDS AT 2010 CENSUS TRACK CENTROIDS FOR OPEN TERRAIN',
 'Swath domain provided by FEMA',
 'Landfall position:     -77.8001      34.2001']
-output_file = 'output'
+output_file = r'C:\Users\jrainesi\Downloads/wg'
 
 create_dat(windgrid_file, DAT_header, output_file)
