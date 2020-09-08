@@ -3,8 +3,11 @@ import pandas as pd
 import numpy as np
 from scipy.spatial import cKDTree
 from time import time
+import rasterio as rio
+from shapely.geometry import Point
 
-def idw(kdtree,z,xi,yi):
+
+def idw(kdtree, z, xi, yi):
     """ Inverse Distance Weighting - interpolates an unknown value at a 
     specified point by weighting the values of it's nearest neighbors
 
@@ -13,14 +16,14 @@ def idw(kdtree,z,xi,yi):
         z: 1d array -- point values at each location
         xi: float -- x-axis point location of unknown value
         yi: float -- y-axis point location of unknown value
-    
+
     Returns:
         zi: float -- interpolated value at xi, yi
 
     """
     neighbors = 12
     power = 2
-    distances, indicies = kdtree.query([xi,yi], k=neighbors)
+    distances, indicies = kdtree.query([xi, yi], k=neighbors)
     z_n = z[indicies]
     if 0 not in distances:
         weights = power / distances
@@ -31,28 +34,70 @@ def idw(kdtree,z,xi,yi):
     zi = np.dot(weights.T, z_n)
     return zi
 
-def create_dat(windgrid_file, DAT_header, output_file):
+
+def create_dat_from_shapefile(windgrid_file, DAT_header, output_file, wind_field='Vg_mph'):
     """ Creates a Hazus DAT file containing windspeeds in m/s from a windgrid shapefile
 
     Keyword arguments:
         windgrid_file: str -- file location of windgrid shapefile
         DAT_header: list<str> -- a list of strings to be used as the header of the DAT file
         output_file: str -- file location and name of output DAT file
+        wind_field: str -- the column or field name of the wind values to include in the DAT file
     """
     t0 = time()
     output_file = output_file + '.dat'
     print('reading windgrid')
     t1 = time()
-    windgrid = gpd.read_file(windgrid_file)
-    print(time() - t1)
-    print('reading us centroids')
+    gdf = gpd.read_file(windgrid_file)
+    create_dat_from_geodataframe(
+        gdf, DAT_header, output_file, wind_field=wind_field)
+
+
+def create_dat_from_csv(windgrid_file, DAT_header, output_file, wind_field='gust_mph', latitude_field='lat', longitude_field='lon'):
+    """ Creates a Hazus DAT file containing windspeeds in m/s from a windgrid csv file
+
+    Keyword arguments:
+        windgrid_file: str -- file location of windgrid csv
+        DAT_header: list<str> -- a list of strings to be used as the header of the DAT file
+        output_file: str -- file location and name of output DAT file
+        wind_field: str -- the column or field name of the wind values to include in the DAT file
+        latitude_field: str -- the column or field name for the latitude coordinates (use WGS84)
+        longitude_field: str -- the column or field name for the longitude coordinates (use WGS84)
+    """
+    df = pd.read_csv(windgrid_file)
+    df['geometry'] = [Point(x, y) for x, y in zip(
+        df[longitude_field], df[latitude_field])]
+    gdf = gpd.GeoDataFrame(df, geometry='geometry')
+    create_dat_from_geodataframe(
+        gdf, DAT_header, output_file, wind_field=wind_field)
+
+
+def create_dat_from_raster(raster):
+    # TODO --- NOT DONE --- finish coding
+    """ Creates a Hazus DAT file containing windspeeds in m/s from a geopandas geodataframe
+
+    Keyword arguments:
+        gdf: str -- a geodataframe containing a point windgrid and windspeeds
+        DAT_header: list<str> -- a list of strings to be used as the header of the DAT file
+        output_file: str -- file location and name of output DAT file
+        wind_field: str -- the column or field name of the wind values to include in the DAT file
+    """
+    band = rio.open(raster)
+
+
+def create_dat_from_geodataframe(gdf, DAT_header, output_file, wind_field='gust_mph'):
+    """ Creates a Hazus DAT file containing windspeeds in m/s from a geopandas geodataframe
+
+    Keyword arguments:
+        gdf: str -- a geodataframe containing a point windgrid and windspeeds
+        DAT_header: list<str> -- a list of strings to be used as the header of the DAT file
+        output_file: str -- file location and name of output DAT file
+        wind_field: str -- the column or field name of the wind values to include in the DAT file
+    """
+    t0 = time()
     t1 = time()
     centroids_all = gpd.read_file('base_data/us_centroids.shp')
-    print(time() - t1)
-
-    print('selecting centroids in windgrid')
-    t1 = time()
-    buff = windgrid.geometry.buffer(0.2)
+    buff = gdf.geometry.buffer(0.2)
     buff_gdf = gpd.GeoDataFrame(geometry=buff.geometry)
     buff_gdf['dis'] = 1
     dissolve = buff_gdf.dissolve(by='dis')
@@ -60,11 +105,10 @@ def create_dat(windgrid_file, DAT_header, output_file):
     centroids = centroids_all[centroids_intersect == True]
     print(time() - t1)
 
-
     print('formatting data for idw')
     t1 = time()
-    xy = np.asarray([[x.x, x.y] for x in windgrid.geometry])
-    z = np.asarray([x for x in windgrid.Vg_mph])
+    xy = np.asarray([[x.x, x.y] for x in gdf.geometry])
+    z = np.asarray([x for x in gdf[wind_field]])
     xis = np.asarray([x.x for x in centroids.geometry])
     yis = np.asarray([x.y for x in centroids.geometry])
     print(time() - t1)
@@ -74,7 +118,7 @@ def create_dat(windgrid_file, DAT_header, output_file):
     kdtree = cKDTree(xy)
     zis = []
     for xi, yi in zip(xis, yis):
-        zi = idw(kdtree,z,xi,yi)
+        zi = idw(kdtree, z, xi, yi)
         zis.append(zi)
     print(time() - t1)
     zis = np.asarray(zis)
@@ -88,18 +132,20 @@ def create_dat(windgrid_file, DAT_header, output_file):
     windSpeeds = list(map(lambda x: '{0:.5f}'.format(x) + '     ', zis))
     zeros = list(map(lambda x: '0' + '{0:.5f}'.format(x * 0) + '    ', zis))
     windSpeedsLast = list(map(lambda x: '{0:.5f}'.format(x), zis))
-    df = pd.DataFrame({'tracts': tracts, 'longs': longs, 'lats': lats, 'windSpeeds': windSpeeds, 'zeros': zeros, 'windSpeedsLast': windSpeedsLast})
+    df = pd.DataFrame({'tracts': tracts, 'longs': longs, 'lats': lats,
+                       'windSpeeds': windSpeeds, 'zeros': zeros, 'windSpeedsLast': windSpeedsLast})
     print(time() - t1)
 
     print('writing output DAT file')
     t1 = time()
     # creates and opens the export DAT file
     pd.DataFrame().to_csv(output_file, header=False, index=False)
-    export=open(output_file, "w")
+    export = open(output_file, "w")
 
     # adds columns to the DAT file header
     DAT_header.append('')
-    DAT_header.append('      ident        elon      nlat         ux          vy        w (m/s)')
+    DAT_header.append(
+        '      ident        elon      nlat         ux          vy        w (m/s)')
 
     # writes header to DAT file
     for row in DAT_header:
@@ -116,11 +162,12 @@ def create_dat(windgrid_file, DAT_header, output_file):
     print('Total elasped time: ' + str(time() - t0))
 
 
-windgrid_file = r'C:\Users\jrainesi\Downloads/wg/wind_grid.shp'
-DAT_header = ['Florence 2018: ARA Day7 as of 09/21/2018',
-'MAXIMUM 3 SECOND WINDS AT 2010 CENSUS TRACK CENTROIDS FOR OPEN TERRAIN',
-'Swath domain provided by FEMA',
-'Landfall position:     -77.8001      34.2001']
-output_file = r'C:\Users\jrainesi\Downloads/wg'
+windgrid_file = r'C:\projects\Disasters\2020_Laura\ARA_0908\Hurricane Laura Rapid Response Windfield Release 3/3-Hurricane_Laura_Simulated_Winds_Release_3.csv'
+DAT_header = ['Laura 2020: ARA Wind Model as of 09/08/2020',
+              'PEAK 3-SECOND GUSTS AT 10 M OVER FLAT, OPEN TERRIAN',
+              'Swath domain provided by FEMA']
+# 'Landfall position:     -77.8001      34.2001']
+output_file = 'C:/projects/Disasters/2020_Laura/ARA_0908/windgrid.dat'
 
-create_dat(windgrid_file, DAT_header, output_file)
+create_dat_from_csv(windgrid_file, DAT_header,
+                    output_file, wind_field='gust_mph')
