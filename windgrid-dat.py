@@ -5,6 +5,7 @@ from scipy.spatial import cKDTree
 from time import time
 import rasterio as rio
 from shapely.geometry import Point
+from hazpy.legacy import HazusDB
 
 
 def idw(kdtree, z, xi, yi):
@@ -96,7 +97,22 @@ def create_dat_from_geodataframe(gdf, DAT_header, output_file, wind_field='gust_
     """
     t0 = time()
     t1 = time()
-    centroids_all = gpd.read_file('base_data/us_centroids.shp')
+    db = HazusDB()
+    sql = """
+    select Tract as FIPS, CenLongit as lon, CenLat as lat from
+        (select * from
+        syHazus.dbo.syTract) a
+        inner join 
+        (select StateFips
+        FROM [syHazus].[dbo].[syState]
+        where HUState = 1
+        and StateFips < 55) b
+        on Substring(a.CountyFips, 1, 2) like b.StateFips+ '%'
+        """
+    queryset = db.query(sql)
+    queryset['geometry'] = [Point(x, y) for x, y in zip(
+        queryset['lon'], queryset['lat'])]
+    centroids_all = gpd.GeoDataFrame(queryset, geometry='geometry')
     buff = gdf.geometry.buffer(0.2)
     buff_gdf = gpd.GeoDataFrame(geometry=buff.geometry)
     buff_gdf['dis'] = 1
@@ -167,7 +183,7 @@ DAT_header = ['Laura 2020: ARA Wind Model as of 09/08/2020',
               'PEAK 3-SECOND GUSTS AT 10 M OVER FLAT, OPEN TERRIAN',
               'Swath domain provided by FEMA']
 # 'Landfall position:     -77.8001      34.2001']
-output_file = 'C:/projects/Disasters/2020_Laura/ARA_0908/windgrid.dat'
+output_file = 'C:/projects/Disasters/2020_Laura/ARA_0908/windgrid3.dat'
 
 create_dat_from_csv(windgrid_file, DAT_header,
                     output_file, wind_field='gust_mph')
