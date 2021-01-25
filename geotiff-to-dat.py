@@ -23,7 +23,6 @@ def getValueMask(src):
     union = cascaded_union(_shapes)
     return union
 
-
 def generate_dat_df(src, tracts):
         df = pd.DataFrame()
         for index, tract in enumerate(list(tracts.geometry)):
@@ -43,9 +42,8 @@ def generate_dat_df(src, tracts):
         df = df.reindex(columns=['ident', 'elon', 'nlat', 'ux', 'vy', 'w (m/s)'])
         return df
 
-
-def arcgrid_to_dat():
-    rasters = [x for x in os.listdir(input_dir) if '.' not in x]
+def geotiff_to_dat():
+    rasters = [x for x in os.listdir(input_dir) if '.tif' in x]
     tracts = gpd.read_file('db/tracts/tracts.shp')
     for raster in rasters:
         src = rio.open(f'{input_dir}/{raster}')
@@ -59,4 +57,4 @@ def arcgrid_to_dat():
 
 
 if __name__=='__main__':
-    arcgrid_to_dat()
+    geotiff_to_dat()

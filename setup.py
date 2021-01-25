@@ -4,6 +4,7 @@ import zipfile
 import os
 import geopandas as gpd
 from shutil import rmtree
+from config import input_dir, output_dir
 
 def download_and_return_content(url, destination):
     print('downloading...')
@@ -38,8 +39,8 @@ def setup_db():
 
 def setup_directories():
     print('setting up directories...')
-    os.mkdir('input')
-    os.mkdir('output')
+    os.mkdir(input_dir)
+    os.mkdir(output_dir)
 
 if __name__=='__main__':
     setup_db()

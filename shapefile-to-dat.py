@@ -1,32 +1,24 @@
+import pandas as pd
+import os
+from shapely.geometry import Point, Polygon, MultiPolygon
 import geopandas as gpd
-import geodataframe_to_dat from utils
-# TODO code this based on arcgrid-to-dat.py
-def shapefile_to_dat(windgrid_file, DAT_header, output_file, wind_field='Vg_mph'):
-    """ Creates a Hazus DAT file containing windspeeds in m/s from a windgrid shapefile
+import importlib
+from utils import geodataframe_to_dat
+from config import latitude_field, longitude_field, input_dir, output_dir
 
-    Keyword arguments:
-        windgrid_file: str -- file location of windgrid shapefile
-        DAT_header: list<str> -- a list of strings to be used as the header of the DAT file
-        output_file: str -- file location and name of output DAT file
-        wind_field: str -- the column or field name of the wind values to include in the DAT file
+def shapefile_to_dat():
+    """ Creates a Hazus DAT file containing windspeeds in m/s from a windgrid point or polygon Shapefile
     """
-    t0 = time()
-    output_file = output_file + '.dat'
-    print('reading windgrid')
-    t1 = time()
-    gdf = gpd.read_file(windgrid_file)
-    geodataframe_to_dat(gdf, DAT_header, output_file, wind_field=wind_field)
+    # list input files
+    input_files = [x for x in os.listdir(input_dir) if x.endswith('.shp')]
+
+    for input_file in input_files:
+        # read input files
+        gdf = gpd.read_file(f'{input_dir}/{input_file}')
+        if type(gdf['geometry'][0]) != Point:
+            gdf['geometry'] = [x.centroid for x in gdf['geometry']]
+        # generate .dat file
+        geodataframe_to_dat(gdf, f"{output_dir}/{'.'.join(input_file.split('.')[0:-1])}")
 
 if __name__=='__main__':
-    if len(sys.argv) > 1:
-        name = sys.argv[1]
-        try:
-            date = sys.argv[2]
-        except:
-            date = datetime.now()
-        date_format = "%m/%d/%Y"
-        date = date.strftime(date_format)
-        dat_header = [f'{name}: ARA Wind Model as of {date}',
-            'PEAK 3-SECOND GUSTS AT 10 M OVER FLAT, OPEN TERRIAN',
-            'Swath domain provided by FEMA']
-        shapefile_to_dat(dat_header)
+    shapefile_to_dat()
