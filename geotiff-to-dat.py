@@ -43,7 +43,7 @@ def generate_dat_df(src, tracts):
         return df
 
 def geotiff_to_dat():
-    rasters = [x for x in os.listdir(input_dir) if '.tif' in x]
+    rasters = [x for x in os.listdir(input_dir) if x.endswith('.tif')]
     tracts = gpd.read_file('db/tracts/tracts.shp')
     for raster in rasters:
         src = rio.open(f'{input_dir}/{raster}')
