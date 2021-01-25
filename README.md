@@ -1,10 +1,6 @@
 # windgrid-dat
 
-The windgrid dat scripts take a windgrid and creates a Hazus .dat file. 
-
-The replacement will be scripts targeting particular file type conversions (e.g., arcgrid-to-dat.py; gtiff-to-dat.py; csv-to-dat.py; shapefile-to-dat.py)
-
-csv-to-dat.py, shapefile-to-dat.py, and utils.py are still under development and are not functional at this point.
+The windgrid dat scripts take a windgrid and creates a Hazus .dat file.
 
 <h2>Setup</h2>
 
