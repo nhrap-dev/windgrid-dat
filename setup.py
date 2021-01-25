@@ -49,8 +49,9 @@ if __name__=='__main__':
         1) activate your venv with all dependencies\n
             Example: activate hazus_env\n
         2) copy the conversion files to the input folder (GTiff, CSV, Shapefile, ArcGrid)\n
-        3) run the script in the terminal\n
-            Syntax: python script.py dat_header_name dat_header_date  
-            Example: python gtiff-to-dat.py "Hurricane Hanna" 09/08/2020\n
-        4) view the .dat file(s) in the output folder
+        3) Update the variables in config.py\n
+        4) run the script in the terminal\n
+            Syntax: python script.py\n
+            Example: python geotiff-to-dat.py\n
+        5) view the .dat file(s) in the output folder
     """)
